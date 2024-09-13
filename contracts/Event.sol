@@ -2,12 +2,14 @@
 
 pragma solidity 0.8.27;
 
-import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Base64} from "./Base64.sol";
-
-contract Event is ERC721URIStorage {
+/// todo
+/// add soulbound
+/// add a withdrawfunction for event owner
+contract Event is ERC721, ERC721URIStorage {
     error SeatAlreadyTaken(uint256 _id, uint256 _seat);
     error NotOwner();
     error InvalidEventId();
@@ -17,6 +19,7 @@ contract Event is ERC721URIStorage {
     error WithdrawalFailed();
     error ZeroAddress();
     error NotEventOwner();
+    error NonTransferable();
 
     address public owner;
     uint256 public totalevents;
@@ -111,7 +114,7 @@ contract Event is ERC721URIStorage {
 
         string memory svg = renderSVG(events[_id].name, _seat);
         string memory imageURI = svgToImageURI(svg);
-        string memory tokenURI = formatTokenURI(
+        string memory tokenURi = formatTokenURI(
             events[_id].name,
             events[_id].eventDesc,
             imageURI
@@ -128,7 +131,7 @@ contract Event is ERC721URIStorage {
         totalSupply++;
         events[_id].totalAmount = events[_id].totalAmount + msg.value;
         _safeMint(msg.sender, totalSupply);
-        _setTokenURI(totalSupply, tokenURI);
+        _setTokenURI(totalSupply, tokenURi);
     }
 
     function svgToImageURI(
@@ -186,6 +189,7 @@ contract Event is ERC721URIStorage {
                 )
             );
     }
+
     // ///
     // function _withdrawAbleByOwner() private view returns(uint256){
     //     return (address(this).balance * 10)/100;
@@ -197,5 +201,72 @@ contract Event is ERC721URIStorage {
 
     function _onlyEventOwner(uint256 _eventId) private view {
         require(msg.sender == events[_eventId].eventOwner, NotEventOwner());
+    }
+
+    // The following functions are overrides required by Solidity.
+
+    function tokenURI(
+        uint256 tokenId
+    ) public view override(ERC721, ERC721URIStorage) returns (string memory) {
+        return super.tokenURI(tokenId);
+    }
+
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override(ERC721, ERC721URIStorage) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+    // Soulbound implementation
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public virtual override(ERC721, IERC721) {
+        revert NonTransferable();
+    }
+
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public virtual override(ERC721, IERC721) {
+        revert NonTransferable();
+    }
+
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory data
+    ) public virtual override(ERC721, IERC721) {
+        revert NonTransferable();
+    }
+
+    function approve(
+        address to,
+        uint256 tokenId
+    ) public virtual override(ERC721, IERC721) {
+        revert NonTransferable();
+    }
+
+    function setApprovalForAll(
+        address operator,
+        bool approved
+    ) public virtual override(ERC721, IERC721) {
+        revert NonTransferable();
+    }
+
+    function isApprovedForAll(
+        address owner,
+        address operator
+    ) public view virtual override(ERC721, IERC721) returns (bool) {
+        return false;
+    }
+
+    function getApproved(
+        uint256 tokenId
+    ) public view virtual override(ERC721, IERC721) returns (address) {
+        return address(0);
     }
 }
