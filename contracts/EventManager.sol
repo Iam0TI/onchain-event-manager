@@ -2,63 +2,65 @@
 pragma solidity 0.8.27;
 
 import {Event} from "./Event.sol";
+import {EventErrors} from "./Error.sol";
 
-contract EventManager {
-    event CreatedMultisigWallet(address indexed, uint256 _quorum, address[] _validSigners);
-
+contract EventManager is EventErrors {
     uint256 public totalevents;
-    uint256 public totalTicketSold;
+    address public owner;
+    uint256 public constant EVENT_CREATION_COST = 0.1 ether;
 
     struct EventStruct {
         uint256 id;
         string name;
-        uint256 cost;
+        string eventDesc;
+        uint256 cost; // in wei
         uint256 tickets;
         uint256 maxTickets;
         string date;
         string time;
         string location;
+        address eventOwner;
+        uint256 totalAmount; // amount of ticketsold
     }
 
     mapping(uint256 => EventStruct) events;
 
-    function list(
+    constructor() {
+        owner = msg.sender;
+    }
+
+    // function to register events
+    function registerEvent(
+        string memory _ipfsHash,
         string memory _name,
+        string memory _eventDesc,
         uint256 _cost,
         uint256 _maxTickets,
         string memory _date,
         string memory _time,
         string memory _location
-    ) external {
+    ) external payable returns (Event newEvent) {
+        require(msg.sender != address(0), ZeroAddress());
+        require(msg.value >= EVENT_CREATION_COST, InsufficientPayment());
+
         totalevents++;
-        events[totalevents] = EventStruct(totalevents, _name, _cost, _maxTickets, _maxTickets, _date, _time, _location);
+        events[totalevents] = EventStruct(
+            totalevents, _name, _eventDesc, _cost, _maxTickets, _maxTickets, _date, _time, _location, msg.sender, 0
+        );
+        newEvent = new Event(_ipfsHash, totalevents, _name, _eventDesc, _cost, _maxTickets, _date, _time, _location);
     }
 
     function getEventStruct(uint256 _id) public view returns (EventStruct memory) {
         return events[_id];
     }
 
-    // function getSeatsTaken(uint256 _id) public view returns (uint256[] memory) {
-    //     return seatsTaken[_id];
-    // }
-
-    function createMultisigWallet(uint8 _quorum, address[] memory _validSigners)
-        external
-        returns (Event newMulSig_, uint256 length_)
-    {
-        //  newMulSig_ = new Event(_quorum, _validSigners);
-
-        // multiSigClones.push(newMulSig_);
-
-        // length_ = multiSigClones.length;
-
-        emit CreatedMultisigWallet(msg.sender, _quorum, _validSigners);
+    function withdraw() external {
+        _onlyOwner();
+        (bool success,) = owner.call{value: address(this).balance}("");
+        require(success, WithdrawalFailed());
     }
 
-    // function getMultiSigClone(uint index) external view returns (address) {
-    //     return address(multiSigClones[index]);
-    // }
-    // function getMultiSigClones() external view returns (MultiSig[] memory) {
-    //     return multiSigClones;
-    // }
+    function _onlyOwner() private view {
+        require(msg.sender == owner, NotOwner());
+    }
 }
